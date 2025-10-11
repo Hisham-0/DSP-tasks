@@ -79,24 +79,25 @@ class SignalProcessingGUI:
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
 
-        # File Menu
+        # File Menu - UPDATED
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Load Signal", command=self.load_signal)
         file_menu.add_separator()
-        file_menu.add_command(label="Clear All Signals", command=self.clear_signals)
+        file_menu.add_command(label="Delete Selected Signal", command=self.delete_signal)
+        file_menu.add_command(label="Delete All Signals", command=self.delete_all_signals)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
 
-        # Signal Generation Menu
+        # Signal Generation Menu (unchanged)
         signal_gen_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Generation", menu=signal_gen_menu)
         signal_gen_menu.add_command(label="Sine Wave",
-                                   command=lambda: self.show_sinusoidal_dialog(is_cosine=False))
+                                    command=lambda: self.show_sinusoidal_dialog(is_cosine=False))
         signal_gen_menu.add_command(label="Cosine Wave",
-                                   command=lambda: self.show_sinusoidal_dialog(is_cosine=True))
+                                    command=lambda: self.show_sinusoidal_dialog(is_cosine=True))
 
-        # Operations Menu
+        # Operations Menu (unchanged)
         operations_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Operations", menu=operations_menu)
         operations_menu.add_command(label="Addition", command=self.show_addition_dialog)
@@ -107,13 +108,13 @@ class SignalProcessingGUI:
         operations_menu.add_command(label="Normalization", command=self.show_normalization_dialog)
         operations_menu.add_command(label="Accumulation", command=self.show_accumulation_dialog)
 
-        # Display Menu
+        # Display Menu (unchanged)
         display_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Display", menu=display_menu)
         display_menu.add_command(label="Show Continuous",
-                                command=lambda: self.display_signal("continuous"))
+                                 command=lambda: self.display_signal("continuous"))
         display_menu.add_command(label="Show Discrete",
-                                command=lambda: self.display_signal("discrete"))
+                                 command=lambda: self.display_signal("discrete"))
         display_menu.add_separator()
         display_menu.add_command(label="Compare Signals", command=self.show_comparison_dialog)
         display_menu.add_command(label="Reset View", command=self.reset_plot_view)
@@ -248,7 +249,7 @@ class SignalProcessingGUI:
         control_frame = tk.Frame(parent, borderwidth=1, relief=tk.GROOVE, padx=10, pady=10)
         control_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
-        # Row 1 buttons - File and Display operations
+        # Row 1 buttons - File and Display operations - UPDATED
         row1 = tk.Frame(control_frame)
         row1.pack(fill=tk.X, pady=3)
 
@@ -260,17 +261,17 @@ class SignalProcessingGUI:
         row3 = tk.Frame(control_frame)
         row3.pack(fill=tk.X, pady=3)
 
-        # Button definitions for row 1
+        # Button definitions for row 1 - UPDATED
         row1_buttons = [
             ("Load Signal", self.load_signal),
-            ("Clear All", self.clear_signals),
+            ("Delete Selected", self.delete_signal),  # CHANGED FROM "Clear All"
             ("Continuous", lambda: self.display_signal("continuous")),
             ("Discrete", lambda: self.display_signal("discrete")),
             ("Compare", self.show_comparison_dialog),
             ("Reset View", self.reset_plot_view),
         ]
 
-        # Button definitions for row 2
+        # Button definitions for row 2 (unchanged)
         row2_buttons = [
             ("Add Signals", self.show_addition_dialog),
             ("Subtract", self.show_subtraction_dialog),
@@ -469,7 +470,7 @@ class SignalProcessingGUI:
 
         if file_path:
             try:
-                signal_data = SignalProcessor.parse_signal_file(file_path)
+                signal_data = SignalProcessor.parse_signal_file(file_path) # call method to hande the file
                 signal_name = os.path.basename(file_path)
 
                 self.data_manager.add_signal(signal_data, signal_name, file_path)
@@ -491,20 +492,92 @@ class SignalProcessingGUI:
                 messagebox.showerror("Error", f"Failed to load signal:\n{str(e)}")
                 self.update_status("Error loading signal")
 
-    def clear_signals(self):
-        """Clear all signals"""
+    #
+    #
+    #
+    def delete_signal(self):
+        """Delete selected signal(s) from the list"""
+        if self.data_manager.get_signal_count() == 0:
+            messagebox.showinfo("Info", "No signals to delete")
+            return
+
+        # Get current selection
+        selected_indices = self.signal_listbox.curselection()
+
+        if not selected_indices:
+            messagebox.showwarning("Warning",
+                                   "Please select one or more signals to delete.\n\n"
+                                   "Tip: Use Ctrl+Click to select multiple signals")
+            return
+
+        # Create confirmation message
+        if len(selected_indices) == 1:
+            signal = self.data_manager.get_signal(selected_indices[0])
+            message = f"Are you sure you want to delete signal:\n'{signal['name']}'?"
+        else:
+            message = f"Are you sure you want to delete {len(selected_indices)} selected signals?"
+
+        # Ask for confirmation
+        response = messagebox.askyesno("Delete Signals", message)
+
+        if response:
+            # Remove the selected signals
+            removed_signals = self.data_manager.remove_signals(selected_indices)
+
+            # Update the display
+            self.update_signal_list()
+            self.info_text.delete(1.0, tk.END)
+
+            # Reset plot if no signals left, otherwise keep current display
+            if self.data_manager.get_signal_count() == 0:
+                self.setup_initial_plot()
+            else:
+                # Redraw the plot to remove deleted signals
+                self.redraw_current_plot()
+
+            # Show success message
+            if len(removed_signals) == 1:
+                self.update_status(f"Deleted signal: {removed_signals[0]['name']}")
+            else:
+                self.update_status(f"Deleted {len(removed_signals)} signals")
+
+    def delete_all_signals(self):
+        """Delete all signals (alternative to clear_signals)"""
         if self.data_manager.get_signal_count() > 0:
-            response = messagebox.askyesno("Clear Signals",
-                                          "Are you sure you want to clear all signals?")
+            response = messagebox.askyesno("Delete All Signals",
+                                           "Are you sure you want to delete ALL signals?")
             if response:
                 self.data_manager.clear_signals()
                 self.update_signal_list()
                 self.info_text.delete(1.0, tk.END)
                 self.setup_initial_plot()
-                self.update_status("All signals cleared")
+                self.update_status("All signals deleted")
         else:
-            messagebox.showinfo("Info", "No signals to clear")
+            messagebox.showinfo("Info", "No signals to delete")
 
+    def redraw_current_plot(self):
+        """Redraw the current plot after deletion"""
+        if not self.ax.has_data():
+            self.setup_initial_plot()
+            return
+
+        # Get the current title to determine what was being displayed
+        current_title = self.ax.get_title()
+
+        # Clear and set up basic plot structure
+        self.ax.clear()
+        self.ax.set_title(current_title, fontsize=14, fontweight='bold')
+        self.ax.set_xlabel("Sample Index (n)")
+        self.ax.set_ylabel("Amplitude")
+        self.ax.grid(True, linestyle='--', alpha=0.5)
+        self.ax.axhline(y=0, color='k', linewidth=0.8, alpha=0.7)
+
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+    #
+    #
+    #
     def update_signal_list(self):
         """Update the signal listbox display"""
         self.signal_listbox.delete(0, tk.END)
@@ -559,13 +632,15 @@ class SignalProcessingGUI:
         info += f"{'Index':<12} {'Amplitude':<15}\n"
         info += f"{'-'*27}\n"
 
-        for i in range(min(10, len(signal["samples"]))):
+        for i in range(min(15, len(signal["samples"]))):
             info += f"{signal['indices'][i]:<12.4f} {signal['samples'][i]:<15.4f}\n"
 
-        if len(signal["samples"]) > 10:
-            info += f"\n... showing 10 of {len(signal['samples'])} samples."
+        if len(signal["samples"]) > 15:
+            info += f"\n... showing 15 of {len(signal['samples'])} samples."
 
         self.info_text.insert(tk.END, info)
+
+
 
     # ===== PLOT DISPLAY METHODS =====
     def display_signal(self, mode):
@@ -693,7 +768,7 @@ class SignalProcessingGUI:
         dialog = ComparisonDialog(self.root, self)
         dialog.show()
 
-    # ===== OPERATION EXECUTION METHODS =====
+
     # ===== OPERATION EXECUTION METHODS =====
     def execute_operation(self, operation_type, **kwargs):
         """Execute signal processing operation and handle results"""
