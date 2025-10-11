@@ -694,14 +694,33 @@ class SignalProcessingGUI:
         dialog.show()
 
     # ===== OPERATION EXECUTION METHODS =====
+    # ===== OPERATION EXECUTION METHODS =====
     def execute_operation(self, operation_type, **kwargs):
         """Execute signal processing operation and handle results"""
         try:
             result = None
 
             if operation_type == "sinusoidal":
-                result = SignalProcessor.generate_sinusoidal(**kwargs)
-                self.data_manager.add_signal(result, result["name"])
+                # Extract parameters for sinusoidal generation
+                amplitude = kwargs.get('amplitude', 1.0)
+                analog_freq = kwargs.get('analog_freq', 1.0)  # Fixed parameter name
+                phase_deg = kwargs.get('phase_deg', 0.0)  # Fixed parameter name
+                sampling_freq = kwargs.get('sampling_freq', 100.0)  # Fixed parameter name
+                is_cosine = kwargs.get('is_cosine', False)
+                duration = kwargs.get('duration', 1.0)  # Fixed parameter name
+
+                result = SignalProcessor.generate_sinusoidal(
+                    amplitude=amplitude,
+                    analog_freq=analog_freq,  # Match parameter names in SignalProcessor
+                    phase_deg=phase_deg,
+                    sampling_freq=sampling_freq,
+                    is_cosine=is_cosine,
+                    duration=duration
+                )
+
+                wave_type = "Cosine" if is_cosine else "Sine"
+                name = f"{wave_type}_{amplitude}A_{analog_freq}F_{sampling_freq}Fs"
+                self.data_manager.add_signal(result, name)
 
             elif operation_type == "addition":
                 signals = [self.data_manager.get_signal(i) for i in kwargs['signal_indices']]
@@ -803,6 +822,8 @@ class SinusoidalDialog:
         self.dialog = tk.Toplevel(self.parent)
         self.dialog.title(f"Generate {self.wave_type} Wave")
         self.dialog.geometry("400x450")
+        self.dialog.transient(self.parent)  # Set to be on top of the main window
+        self.dialog.grab_set()  # Modal
 
         tk.Label(self.dialog, text=f"Parameters for {self.wave_type} Wave",
                 font=("Arial", 10, "bold")).pack(pady=10)
@@ -832,24 +853,36 @@ class SinusoidalDialog:
         frame.pack(fill=tk.X, padx=10, pady=5)
         tk.Label(frame, text=label, width=25, anchor='w').pack(side=tk.LEFT)
         var = tk.StringVar(value=str(default))
-        tk.Entry(frame, textvariable=var, width=15).pack(side=tk.RIGHT, expand=True)
+        entry = tk.Entry(frame, textvariable=var, width=15)
+        entry.pack(side=tk.RIGHT, expand=True)
         return var
 
     def generate(self):
         """Generate the sinusoidal signal"""
         try:
-            params = {
-                'amplitude': float(self.amplitude_var.get()),
-                'analog_freq_f': float(self.freq_var.get()),
-                'phase_theta_deg': float(self.phase_var.get()),
-                'sampling_freq_fs': float(self.sampling_freq_var.get()),
-                'total_time_s': float(self.time_var.get()),
-                'is_cosine': (self.wave_type == "Cosine")
-            }
+            # Get all parameter values
+            amplitude = float(self.amplitude_var.get())
+            analog_freq = float(self.freq_var.get())  # Fixed variable name
+            phase_deg = float(self.phase_var.get())  # Fixed variable name
+            sampling_freq = float(self.sampling_freq_var.get())  # Fixed variable name
+            duration = float(self.time_var.get())  # Fixed variable name
+            is_cosine = (self.wave_type == "Cosine")
 
-            if any(v <= 0 for v in [params['sampling_freq_fs'], params['analog_freq_f'], params['total_time_s']]):
+            # Validate parameters
+            if any(v <= 0 for v in [sampling_freq, analog_freq, duration]):
                 raise ValueError("Frequency, duration, and sampling rate must be positive.")
 
+            # Prepare parameters for execution - using correct parameter names
+            params = {
+                'amplitude': amplitude,
+                'analog_freq': analog_freq,  # Match parameter names in execute_operation
+                'phase_deg': phase_deg,
+                'sampling_freq': sampling_freq,
+                'duration': duration,
+                'is_cosine': is_cosine
+            }
+
+            # Execute the operation
             success = self.gui.execute_operation("sinusoidal", **params)
             if success:
                 self.dialog.destroy()
@@ -862,6 +895,7 @@ class SinusoidalDialog:
 
 class OperationDialog:
     """Base dialog for signal operations"""
+
     def __init__(self, parent, title, gui, operation_type):
         self.parent = parent
         self.title = title
@@ -873,6 +907,8 @@ class OperationDialog:
         """Show the operation dialog"""
         self.dialog = tk.Toplevel(self.parent)
         self.dialog.title(self.title)
+        self.dialog.transient(self.parent)
+        self.dialog.grab_set()
 
         if self.operation_type in ["addition", "subtraction"]:
             self.dialog.geometry("450x450")
@@ -964,7 +1000,7 @@ class OperationDialog:
     def create_buttons(self):
         """Create dialog buttons"""
         button_frame = tk.Frame(self.dialog)
-        button_frame.pack(pady=20)
+        button_frame.pack(pady=10)
 
         tk.Button(button_frame, text="Process", command=self.process,
                  width=15).pack(side=tk.LEFT, padx=5)
@@ -1043,6 +1079,8 @@ class ComparisonDialog:
         self.dialog = tk.Toplevel(self.parent)
         self.dialog.title("Compare Two Signals")
         self.dialog.geometry("450x450")
+        self.dialog.transient(self.parent)
+        self.dialog.grab_set()
 
         tk.Label(self.dialog, text="Select Two Signals to Compare",
                 font=("Arial", 10, "bold")).pack(pady=10)
