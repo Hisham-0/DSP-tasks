@@ -229,10 +229,9 @@ class SignalDataManager:
     def __init__(self):
         self.signals = []
 
-    def add_signal(self, signal_data, name="", filepath=""):
+    def add_signal(self, signal_data, name=""):
         """Add signal to manager"""
         signal_data["name"] = name
-        signal_data["filepath"] = filepath
         self.signals.append(signal_data)
         return len(self.signals) - 1
 

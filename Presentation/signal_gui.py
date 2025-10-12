@@ -486,9 +486,9 @@ class SignalProcessingGUI:
             try:
                 signal_data = SignalProcessor.parse_signal_file(file_path)  # call method , return dictionary
                 signal_name = os.path.basename(file_path)
-
+                signal_data["generated"]=False
                 # add the component of the signal_data to make full signal
-                self.data_manager.add_signal(signal_data, signal_name, file_path)
+                self.data_manager.add_signal(signal_data, signal_name)
                 self.update_signal_list()
 
                 # Show success message
@@ -619,7 +619,7 @@ class SignalProcessingGUI:
 
         info = f"Signal Name: {signal['name']}\n"
         info += f"{'=' * 45}\n"
-        info += f"Source: {os.path.basename(signal.get('filepath', 'Generated'))}\n"
+        info += f"Source: {"Generated" if signal.get("generated", True) else "Imported"}\n"
         info += f"Type: {signal_type}\n"
         info += f"Periodicity: {periodic}\n"
         info += f"Samples: {signal['num_samples']}\n"
