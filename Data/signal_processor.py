@@ -3,7 +3,6 @@ Signal Processing Framework - Logic Layer
 Enhanced with additional operations
 """
 
-import math
 import numpy as np
 
 
@@ -20,11 +19,13 @@ class SignalProcessor:
         Line 4+: Data (Index Amplitude)
         """
         try:
-            with open(file_path, 'r') as file: # 'r' read mode
-                lines = [line.strip() for line in file.readlines() if line.strip()] #load all file lines
+            with open(file_path, 'r') as file:  # 'r' read mode
+                lines = [line.strip() for line in file.readlines() if line.strip()]  # load all file lines
 
-            if len(lines) < 4:
+            if len(lines) < 3:
                 raise ValueError("File must have at least 4 lines")
+            if len(lines[2]) == '0':
+                raise ValueError("File hase no samples for the signal")
 
             # Parse header
             signal_type = int(lines[0])
@@ -38,15 +39,14 @@ class SignalProcessor:
             for i in range(3, min(3 + num_samples_header, len(lines))):
                 parts = lines[i].split()
 
-                if len(parts) >= 2: # check it hase split correct
+                if len(parts) >= 2:  # check it hase split correct
                     indices.append(float(parts[0]))
                     samples.append(float(parts[1]))
 
-
-            # return a a Dictionary after filtering the data
+            # return Dictionary after filtering the data
             return {
-                "indices": indices,
-                "samples": samples,
+                "indices": np.array(indices),
+                "samples": np.array(samples),
                 "signal_type": signal_type,
                 "is_periodic": is_periodic,
                 "num_samples": len(samples)
@@ -58,7 +58,8 @@ class SignalProcessor:
     @staticmethod
     def calculate_statistics(samples):
         """Calculate basic statistics"""
-        if not samples:
+
+        if not samples.any():
             return {"min": 0, "max": 0, "mean": 0}
 
         return {
@@ -67,52 +68,59 @@ class SignalProcessor:
             "mean": sum(samples) / len(samples)
         }
 
-    # Signal Generation Methods
-    @staticmethod
-    def generate_sinusoidal(amplitude, analog_freq, phase_deg, sampling_freq, is_cosine=False, duration=1.0):
-        """Generate sine/cosine wave"""
-        if sampling_freq <= 2 * analog_freq:
-            raise ValueError(f"Sampling frequency must be > {2 * analog_freq} Hz")
-
-        phase_rad = math.radians(phase_deg)
-        num_samples = int(duration * sampling_freq)
-
-        t = np.arange(num_samples) / sampling_freq
-
-        if is_cosine:
-            samples = amplitude * np.cos(2 * np.pi * analog_freq * t + phase_rad)
-        else:
-            samples = amplitude * np.sin(2 * np.pi * analog_freq * t + phase_rad)
-
-        return {
-            "indices": t.tolist(),
-            "samples": samples.tolist(),
-            "signal_type": 0,
-            "is_periodic": 1,
-            "num_samples": num_samples,
-            "x_label": "Time (s)"
-        }
-
     # Arithmetic Operations
     @staticmethod
     def add_signals(signals):
-        """Add multiple signals"""
+        """Add multiple signals (handles unequal lengths by zero-padding)"""
         if len(signals) < 2:
-            raise ValueError("Need at least 2 signals")
+            raise ValueError("Need at least 2 signals to perform addition")
 
-        min_len = min(len(sig["samples"]) for sig in signals)
-        result_samples = [0] * min_len
+        # If signals have different indices, will take the max indices
+        longest_indices = max(signals, key=lambda s: len(s["indices"]))["indices"]
 
-        for i in range(min_len):
-            for sig in signals:
-                result_samples[i] += sig["samples"][i]
+        # Find the maximum signal sample length
+        max_len = max(len(sig["samples"]) for sig in signals)
 
+        result_samples = [0.0] * max_len
+        # Perform addition with zero-padding
+        for sig in signals:
+            for i in range(max_len):
+                if i < len(sig["samples"]):
+                    result_samples[i] += sig["samples"][i]
+                else:
+                    result_samples[i] += 0  # Explicitly showing zero-padding
+
+        # return the resulting signal dictionary
         return {
-            "indices": signals[0]["indices"][:min_len],
-            "samples": result_samples,
+            "indices": np.array(longest_indices[:max_len]),
+            "samples": np.array(result_samples),
             "signal_type": 0,
             "is_periodic": 0,
-            "num_samples": min_len
+            "num_samples": max_len
+        }
+
+    @staticmethod
+    def subtract_signals(signal1, signal2):
+        """Subtract signal2 from signal1 with zero-padding for different lengths"""
+        # Find maximum length
+        max_len = max(len(signal1["samples"]), len(signal2["samples"]))
+
+        # Use indices from longer signal
+        longest_indices = max([signal1, signal2], key=lambda s: len(s["indices"]))["indices"][:max_len]
+
+        # Perform subtraction with zero-padding
+        result_samples = []
+        for i in range(max_len):
+            val1 = signal1["samples"][i] if i < len(signal1["samples"]) else 0.0
+            val2 = signal2["samples"][i] if i < len(signal2["samples"]) else 0.0
+            result_samples.append(val1 - val2)
+
+        return {
+            "indices": np.array(longest_indices),
+            "samples": np.array(result_samples),
+            "signal_type": 0,
+            "is_periodic": 0,
+            "num_samples": max_len
         }
 
     @staticmethod
@@ -120,24 +128,10 @@ class SignalProcessor:
         """Multiply signal by constant"""
         return {
             "indices": signal["indices"],
-            "samples": [s * constant for s in signal["samples"]],
+            "samples": signal['samples'] * constant,  # Multiply each sample with number
             "signal_type": signal["signal_type"],
             "is_periodic": signal["is_periodic"],
             "num_samples": signal["num_samples"]
-        }
-
-    @staticmethod
-    def subtract_signals(signal1, signal2):
-        """Subtract signal2 from signal1"""
-        min_len = min(len(signal1["samples"]), len(signal2["samples"]))
-        result_samples = [signal1["samples"][i] - signal2["samples"][i] for i in range(min_len)]
-
-        return {
-            "indices": signal1["indices"][:min_len],
-            "samples": result_samples,
-            "signal_type": 0,
-            "is_periodic": 0,
-            "num_samples": min_len
         }
 
     @staticmethod
@@ -145,7 +139,7 @@ class SignalProcessor:
         """Square signal samples"""
         return {
             "indices": signal["indices"],
-            "samples": [s ** 2 for s in signal["samples"]],
+            "samples": signal["samples"] ** 2,  # square the sampels array
             "signal_type": signal["signal_type"],
             "is_periodic": 0,
             "num_samples": signal["num_samples"]
@@ -193,167 +187,40 @@ class SignalProcessor:
             "num_samples": signal["num_samples"]
         }
 
-    # Additional Operations
-    # @staticmethod
-    # def scale_signal(signal, scale_factor):
-    #     """Scale signal by factor (time scaling)"""
-    #     if scale_factor <= 0:
-    #         raise ValueError("Scale factor must be positive")
-    #
-    #     indices = signal["indices"]
-    #     samples = signal["samples"]
-    #
-    #     # For time scaling, we adjust the indices
-    #     scaled_indices = [idx * scale_factor for idx in indices]
-    #
-    #     return {
-    #         "indices": scaled_indices,
-    #         "samples": samples,
-    #         "signal_type": signal["signal_type"],
-    #         "is_periodic": signal["is_periodic"],
-    #         "num_samples": signal["num_samples"],
-    #         "x_label": f"Scaled Time (×{scale_factor})"
-    #     }
-    #
-    # @staticmethod
-    # def shift_signal(signal, shift_amount):
-    #     """Shift signal in time"""
-    #     indices = signal["indices"]
-    #     shifted_indices = [idx + shift_amount for idx in indices]
-    #
-    #     return {
-    #         "indices": shifted_indices,
-    #         "samples": signal["samples"],
-    #         "signal_type": signal["signal_type"],
-    #         "is_periodic": signal["is_periodic"],
-    #         "num_samples": signal["num_samples"],
-    #         "x_label": f"Shifted Time (+{shift_amount})"
-    #     }
-    #
-    # @staticmethod
-    # def reverse_signal(signal):
-    #     """Reverse signal in time"""
-    #     return {
-    #         "indices": list(reversed(signal["indices"])),
-    #         "samples": list(reversed(signal["samples"])),
-    #         "signal_type": signal["signal_type"],
-    #         "is_periodic": signal["is_periodic"],
-    #         "num_samples": signal["num_samples"],
-    #         "x_label": "Reversed Time"
-    #     }
-    #
-    # @staticmethod
-    # def differentiate_signal(signal):
-    #     """Numerical differentiation of signal"""
-    #     samples = signal["samples"]
-    #     indices = signal["indices"]
-    #
-    #     if len(samples) < 2:
-    #         raise ValueError("Signal must have at least 2 samples for differentiation")
-    #
-    #     derivative = []
-    #     for i in range(len(samples) - 1):
-    #         dx = indices[i + 1] - indices[i]
-    #         dy = samples[i + 1] - samples[i]
-    #         derivative.append(dy / dx if dx != 0 else 0)
-    #
-    #     # Add last point (same as previous)
-    #     derivative.append(derivative[-1] if derivative else 0)
-    #
-    #     return {
-    #         "indices": indices,
-    #         "samples": derivative,
-    #         "signal_type": signal["signal_type"],
-    #         "is_periodic": 0,
-    #         "num_samples": len(derivative),
-    #         "x_label": signal.get("x_label", "Time")
-    #     }
-    #
-    # @staticmethod
-    # def integrate_signal(signal):
-    #     """Numerical integration of signal"""
-    #     samples = signal["samples"]
-    #     indices = signal["indices"]
-    #
-    #     integral = []
-    #     total = 0
-    #
-    #     for i in range(len(samples)):
-    #         if i > 0:
-    #             dx = indices[i] - indices[i - 1]
-    #             # Trapezoidal rule
-    #             total += (samples[i] + samples[i - 1]) * dx / 2
-    #         integral.append(total)
-    #
-    #     return {
-    #         "indices": indices,
-    #         "samples": integral,
-    #         "signal_type": signal["signal_type"],
-    #         "is_periodic": 0,
-    #         "num_samples": len(integral),
-    #         "x_label": signal.get("x_label", "Time")
-    #     }
-    #
-    # @staticmethod
-    # def convolution(signal1, signal2):
-    #     """Convolution of two signals"""
-    #     samples1 = signal1["samples"]
-    #     samples2 = signal2["samples"]
-    #
-    #     n = len(samples1)
-    #     m = len(samples2)
-    #     result_length = n + m - 1
-    #
-    #     # Simple convolution implementation
-    #     result = [0] * result_length
-    #     for i in range(n):
-    #         for j in range(m):
-    #             result[i + j] += samples1[i] * samples2[j]
-    #
-    #     # Generate appropriate indices
-    #     min_idx = signal1["indices"][0] + signal2["indices"][0]
-    #     max_idx = signal1["indices"][-1] + signal2["indices"][-1]
-    #     indices = np.linspace(min_idx, max_idx, result_length).tolist()
-    #
-    #     return {
-    #         "indices": indices,
-    #         "samples": result,
-    #         "signal_type": 0,
-    #         "is_periodic": 0,
-    #         "num_samples": result_length,
-    #         "x_label": "Convolution Index"
-    #     }
-    #
-    # @staticmethod
-    # def correlation(signal1, signal2):
-    #     """Cross-correlation of two signals"""
-    #     samples1 = signal1["samples"]
-    #     samples2 = signal2["samples"]
-    #
-    #     n = len(samples1)
-    #     m = len(samples2)
-    #     result_length = n + m - 1
-    #
-    #     # Simple correlation implementation
-    #     result = [0] * result_length
-    #     for i in range(result_length):
-    #         for j in range(max(0, i - m + 1), min(i + 1, n)):
-    #             if 0 <= i - j < m:
-    #                 result[i] += samples1[j] * samples2[i - j]
-    #
-    #     # Generate appropriate indices
-    #     min_lag = -m + 1
-    #     max_lag = n - 1
-    #     lags = list(range(min_lag, max_lag + 1))
-    #
-    #     return {
-    #         "indices": lags,
-    #         "samples": result,
-    #         "signal_type": 0,
-    #         "is_periodic": 0,
-    #         "num_samples": result_length,
-    #         "x_label": "Lag"
-    #     }
+    # Signal Generation Methods
+    @staticmethod
+    def generate_sinusoidal(amplitude, analog_freq, phase_deg, sampling_freq, is_cosine=False):
+        """Generate sine/cosine wave - phase input in DEGREES"""
+        # Validate sampling theorem
+        if sampling_freq <= 2 * analog_freq:
+            raise ValueError(f"Sampling frequency must be > {2 * analog_freq} Hz")
+
+        # Convert phase from degrees to radians
+        phase_rad = phase_deg
+
+        # Calculate number of samples for one second (standard practice)
+        num_samples = int(sampling_freq)  # 1 second worth of samples
+
+        # Create sample indices (0, 1, 2, ..., num_samples-1)
+        indices = np.arange(num_samples)
+
+        # Calculate time values for each sample
+        t = indices / sampling_freq
+
+        # Generate wave using numpy functions
+        if is_cosine:
+            samples = amplitude * np.cos(2 * np.pi * analog_freq * t + phase_rad)
+        else:
+            samples = amplitude * np.sin(2 * np.pi * analog_freq * t + phase_rad)
+
+        return {
+            "indices": indices,  # FIX: Use integer indices (0, 1, 2, ...) not time values
+            "samples": samples,
+            "signal_type": 0,
+            "is_periodic": 1,
+            "num_samples": num_samples,
+            "x_label": "Sample Index (n)"
+        }
 
 
 class SignalDataManager:

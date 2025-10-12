@@ -6,7 +6,6 @@ Clean GUI implementation with radio button zoom controls
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
-import sys
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -24,30 +23,45 @@ except ImportError:
         class SignalProcessor:
             @staticmethod
             def parse_signal_file(*args): raise NotImplementedError("SignalProcessor not found")
+
             @staticmethod
             def calculate_statistics(*args): return {"min": 0, "max": 0, "mean": 0}
+
             @staticmethod
             def generate_sinusoidal(*args, **kwargs): raise NotImplementedError("SignalProcessor not found")
+
             @staticmethod
             def add_signals(*args): raise NotImplementedError("SignalProcessor not found")
+
             @staticmethod
             def subtract_signals(*args, **kwargs): raise NotImplementedError("SignalProcessor not found")
+
             @staticmethod
             def multiply_signal(*args, **kwargs): raise NotImplementedError("SignalProcessor not found")
+
             @staticmethod
             def square_signal(*args): raise NotImplementedError("SignalProcessor not found")
+
             @staticmethod
             def normalize_signal(*args, **kwargs): raise NotImplementedError("SignalProcessor not found")
+
             @staticmethod
             def accumulate_signal(*args): raise NotImplementedError("SignalProcessor not found")
 
+
         class SignalDataManager:
             def __init__(self): self.signals = []
+
             def add_signal(self, *args): pass
+
             def get_signal(self, index): return None
+
             def get_all_signals(self): return []
+
             def clear_signals(self): pass
+
             def remove_signal(self, index): return None
+
             def get_signal_count(self): return 0
 
 
@@ -295,7 +309,7 @@ class SignalProcessingGUI:
         """Create radio buttons for zoom mode selection"""
         # Create a labeled frame for zoom controls
         zoom_frame = tk.LabelFrame(parent, text="Mouse Wheel Zoom Mode",
-                                  font=("Arial", 9, "bold"), padx=10, pady=5)
+                                   font=("Arial", 9, "bold"), padx=10, pady=5)
         zoom_frame.pack(fill=tk.X, pady=5)
 
         # Create radio buttons
@@ -470,9 +484,10 @@ class SignalProcessingGUI:
 
         if file_path:
             try:
-                signal_data = SignalProcessor.parse_signal_file(file_path) # call method to hande the file
+                signal_data = SignalProcessor.parse_signal_file(file_path)  # call method , return dictionary
                 signal_name = os.path.basename(file_path)
 
+                # add the component of the signal_data to make full signal
                 self.data_manager.add_signal(signal_data, signal_name, file_path)
                 self.update_signal_list()
 
@@ -481,10 +496,10 @@ class SignalProcessingGUI:
                 periodic = "Periodic" if signal_data["is_periodic"] == 1 else "Non-Periodic"
 
                 messagebox.showinfo("Signal Loaded",
-                                  f"Signal: {signal_name}\n"
-                                  f"Type: {signal_type}\n"
-                                  f"Periodic: {periodic}\n"
-                                  f"Samples: {signal_data['num_samples']}")
+                                    f"Signal: {signal_name}\n"
+                                    f"Type: {signal_type}\n"
+                                    f"Periodic: {periodic}\n"
+                                    f"Samples: {signal_data['num_samples']}")
 
                 self.update_status(f"Loaded: {signal_name}")
 
@@ -492,9 +507,6 @@ class SignalProcessingGUI:
                 messagebox.showerror("Error", f"Failed to load signal:\n{str(e)}")
                 self.update_status("Error loading signal")
 
-    #
-    #
-    #
     def delete_signal(self):
         """Delete selected signal(s) from the list"""
         if self.data_manager.get_signal_count() == 0:
@@ -575,9 +587,6 @@ class SignalProcessingGUI:
         self.fig.tight_layout()
         self.canvas.draw()
 
-    #
-    #
-    #
     def update_signal_list(self):
         """Update the signal listbox display"""
         self.signal_listbox.delete(0, tk.END)
@@ -585,7 +594,7 @@ class SignalProcessingGUI:
         for i, signal in enumerate(self.data_manager.get_all_signals()):
             type_char = "T" if signal["signal_type"] == 0 else "F"
             periodic_char = "P" if signal["is_periodic"] == 1 else "NP"
-            display_text = f"{i+1}. {signal['name']} [{type_char}-{periodic_char}, {signal['num_samples']} samples]"
+            display_text = f"{i + 1}. {signal['name']} [{type_char}-{periodic_char}, {signal['num_samples']} samples]"
             self.signal_listbox.insert(tk.END, display_text)
 
         self.update_status(f"Total signals: {self.data_manager.get_signal_count()}")
@@ -609,7 +618,7 @@ class SignalProcessingGUI:
         periodic = "Periodic" if signal["is_periodic"] == 1 else "Non-Periodic"
 
         info = f"Signal Name: {signal['name']}\n"
-        info += f"{'='*45}\n"
+        info += f"{'=' * 45}\n"
         info += f"Source: {os.path.basename(signal.get('filepath', 'Generated'))}\n"
         info += f"Type: {signal_type}\n"
         info += f"Periodicity: {periodic}\n"
@@ -628,19 +637,17 @@ class SignalProcessingGUI:
         info += f"  Max: {stats['max']:.4f}\n"
         info += f"  Mean: {stats['mean']:.4f}\n\n"
 
-        info += "SAMPLE DATA (first 10):\n"
+        info += "SAMPLE DATA (first 15):\n"
         info += f"{'Index':<12} {'Amplitude':<15}\n"
-        info += f"{'-'*27}\n"
+        info += f"{'-' * 27}\n"
 
         for i in range(min(15, len(signal["samples"]))):
-            info += f"{signal['indices'][i]:<12.4f} {signal['samples'][i]:<15.4f}\n"
+            info += f"{signal['indices'][i]} {signal['samples'][i]:<15.6f}\n"
 
         if len(signal["samples"]) > 15:
             info += f"\n... showing 15 of {len(signal['samples'])} samples."
 
         self.info_text.insert(tk.END, info)
-
-
 
     # ===== PLOT DISPLAY METHODS =====
     def display_signal(self, mode):
@@ -768,7 +775,6 @@ class SignalProcessingGUI:
         dialog = ComparisonDialog(self.root, self)
         dialog.show()
 
-
     # ===== OPERATION EXECUTION METHODS =====
     def execute_operation(self, operation_type, **kwargs):
         """Execute signal processing operation and handle results"""
@@ -776,21 +782,22 @@ class SignalProcessingGUI:
             result = None
 
             if operation_type == "sinusoidal":
-                # Extract parameters for sinusoidal generation
+                # Extract parameters for sinusoidal generation (no duration)
                 amplitude = kwargs.get('amplitude', 1.0)
-                analog_freq = kwargs.get('analog_freq', 1.0)  # Fixed parameter name
-                phase_deg = kwargs.get('phase_deg', 0.0)  # Fixed parameter name
-                sampling_freq = kwargs.get('sampling_freq', 100.0)  # Fixed parameter name
+                analog_freq = kwargs.get('analog_freq', 1.0)
+                phase_deg = kwargs.get('phase_deg', 0.0)  # Input in degrees
+                sampling_freq = kwargs.get('sampling_freq', 100.0)
                 is_cosine = kwargs.get('is_cosine', False)
-                duration = kwargs.get('duration', 1.0)  # Fixed parameter name
+                # Duration parameter removed as per task requirements
 
+                # Call SignalProcessor method without duration
                 result = SignalProcessor.generate_sinusoidal(
                     amplitude=amplitude,
-                    analog_freq=analog_freq,  # Match parameter names in SignalProcessor
+                    analog_freq=analog_freq,
                     phase_deg=phase_deg,
                     sampling_freq=sampling_freq,
-                    is_cosine=is_cosine,
-                    duration=duration
+                    is_cosine=is_cosine
+                    # duration parameter removed
                 )
 
                 wave_type = "Cosine" if is_cosine else "Sine"
@@ -859,7 +866,7 @@ class SignalProcessingGUI:
             # Signal 1 with blue stems
             self.ax.plot(sig1["indices"], sig1["samples"], 'k--', linewidth=1.5, alpha=0.8)
             markerline1, stemlines1, _ = self.ax.stem(sig1["indices"], sig1["samples"],
-                                                    linefmt='b-', markerfmt='bo', basefmt=" ")
+                                                      linefmt='b-', markerfmt='bo', basefmt=" ")
             plt.setp(markerline1, markersize=5, color='b')
             plt.setp(stemlines1, linewidth=1.5, color='b', alpha=0.9)
 
@@ -867,7 +874,7 @@ class SignalProcessingGUI:
             offset_indices = np.array(sig2["indices"]) + 0.01
             self.ax.plot(offset_indices, sig2["samples"], 'k--', linewidth=1.5, alpha=0.8)
             markerline2, stemlines2, _ = self.ax.stem(offset_indices, sig2["samples"],
-                                                    linefmt='r-', markerfmt='rs', basefmt=" ")
+                                                      linefmt='r-', markerfmt='rs', basefmt=" ")
             plt.setp(markerline2, markersize=5, color='r')
             plt.setp(stemlines2, linewidth=1.5, color='r', alpha=0.9)
 
@@ -884,7 +891,7 @@ class SignalProcessingGUI:
 
 # ===== DIALOG CLASSES =====
 class SinusoidalDialog:
-    """Dialog for generating sinusoidal signals"""
+    """Dialog for generating sinusoidal signals - Updated without duration"""
 
     def __init__(self, parent, wave_type, gui):
         self.parent = parent
@@ -893,24 +900,23 @@ class SinusoidalDialog:
         self.dialog = None
 
     def show(self):
-        """Show the dialog"""
+        """Show the dialog without duration field"""
         self.dialog = tk.Toplevel(self.parent)
         self.dialog.title(f"Generate {self.wave_type} Wave")
-        self.dialog.geometry("400x450")
-        self.dialog.transient(self.parent)  # Set to be on top of the main window
-        self.dialog.grab_set()  # Modal
+        self.dialog.geometry("400x400")  # Reduced height since duration removed
+        self.dialog.transient(self.parent)
+        self.dialog.grab_set()
 
         tk.Label(self.dialog, text=f"Parameters for {self.wave_type} Wave",
                 font=("Arial", 10, "bold")).pack(pady=10)
 
-        # Parameter fields
+        # Parameter fields (duration removed)
         self.amplitude_var = self._create_parameter_field("Amplitude (A):", 1.0)
         self.freq_var = self._create_parameter_field("Analog Frequency (F, Hz):", 1.0)
-        self.phase_var = self._create_parameter_field("Phase Shift (theta, degrees):", 0.0)
+        self.phase_var = self._create_parameter_field("Phase Shift (θ, degrees):", 0.0)
         self.sampling_freq_var = self._create_parameter_field("Sampling Frequency (Fs, Hz):", 100.0)
-        self.time_var = self._create_parameter_field("Duration (seconds):", 1.0)
 
-        tk.Label(self.dialog, text="*Fs must obey Sampling Theorem (Fs > 2*F)",
+        tk.Label(self.dialog, text="*Fs must obey Sampling Theorem (Fs > 2×F)",
                 fg='red').pack(pady=5)
 
         # Buttons
@@ -933,28 +939,27 @@ class SinusoidalDialog:
         return var
 
     def generate(self):
-        """Generate the sinusoidal signal"""
+        """Generate the sinusoidal signal without duration"""
         try:
-            # Get all parameter values
+            # Get all parameter values (no duration)
             amplitude = float(self.amplitude_var.get())
-            analog_freq = float(self.freq_var.get())  # Fixed variable name
-            phase_deg = float(self.phase_var.get())  # Fixed variable name
-            sampling_freq = float(self.sampling_freq_var.get())  # Fixed variable name
-            duration = float(self.time_var.get())  # Fixed variable name
+            analog_freq = float(self.freq_var.get())
+            phase_deg = float(self.phase_var.get())
+            sampling_freq = float(self.sampling_freq_var.get())
             is_cosine = (self.wave_type == "Cosine")
 
-            # Validate parameters
-            if any(v <= 0 for v in [sampling_freq, analog_freq, duration]):
-                raise ValueError("Frequency, duration, and sampling rate must be positive.")
+            # Validate parameters (no duration validation needed)
+            if any(v <= 0 for v in [sampling_freq, analog_freq]):
+                raise ValueError("Frequency and sampling rate must be positive.")
 
-            # Prepare parameters for execution - using correct parameter names
+            # Prepare parameters for execution - no duration
             params = {
                 'amplitude': amplitude,
-                'analog_freq': analog_freq,  # Match parameter names in execute_operation
+                'analog_freq': analog_freq,
                 'phase_deg': phase_deg,
                 'sampling_freq': sampling_freq,
-                'duration': duration,
                 'is_cosine': is_cosine
+                # duration parameter removed
             }
 
             # Execute the operation
@@ -996,7 +1001,7 @@ class OperationDialog:
     def create_content(self):
         """Create dialog content - to be overridden by specific operations"""
         tk.Label(self.dialog, text=f"Select for {self.title}",
-                font=("Arial", 10, "bold")).pack(pady=10)
+                 font=("Arial", 10, "bold")).pack(pady=10)
 
         if self.operation_type == "addition":
             self.create_addition_content()
@@ -1058,9 +1063,9 @@ class OperationDialog:
             tk.Label(self.dialog, text="Target Range:", font=("Arial", 9, "bold")).pack(pady=10)
             self.range_var = tk.StringVar(value="-1_to_1")
             tk.Radiobutton(self.dialog, text="Normalize from -1 to 1",
-                          variable=self.range_var, value="-1_to_1").pack()
+                           variable=self.range_var, value="-1_to_1").pack()
             tk.Radiobutton(self.dialog, text="Normalize from 0 to 1",
-                          variable=self.range_var, value="0_to_1").pack()
+                           variable=self.range_var, value="0_to_1").pack()
 
     def populate_signal_list(self, listboxes=None):
         """Populate signal listboxes with available signals"""
@@ -1070,7 +1075,7 @@ class OperationDialog:
         for listbox in listboxes:
             listbox.delete(0, tk.END)
             for i, signal in enumerate(self.gui.data_manager.get_all_signals()):
-                listbox.insert(tk.END, f"{i+1}. {signal['name']}")
+                listbox.insert(tk.END, f"{i + 1}. {signal['name']}")
 
     def create_buttons(self):
         """Create dialog buttons"""
@@ -1078,9 +1083,9 @@ class OperationDialog:
         button_frame.pack(pady=10)
 
         tk.Button(button_frame, text="Process", command=self.process,
-                 width=15).pack(side=tk.LEFT, padx=5)
+                  width=15).pack(side=tk.LEFT, padx=5)
         tk.Button(button_frame, text="Cancel", command=self.dialog.destroy,
-                 width=10).pack(side=tk.LEFT, padx=5)
+                  width=10).pack(side=tk.LEFT, padx=5)
 
     def process(self):
         """Process the selected operation"""
@@ -1124,7 +1129,7 @@ class OperationDialog:
                     messagebox.showwarning("Warning", "Select a signal")
                     return
                 self.gui.execute_operation("normalization", signal_index=selected[0],
-                                         target_range=self.range_var.get())
+                                           target_range=self.range_var.get())
 
             elif self.operation_type == "accumulation":
                 selected = self.signal_list.curselection()
@@ -1158,7 +1163,7 @@ class ComparisonDialog:
         self.dialog.grab_set()
 
         tk.Label(self.dialog, text="Select Two Signals to Compare",
-                font=("Arial", 10, "bold")).pack(pady=10)
+                 font=("Arial", 10, "bold")).pack(pady=10)
 
         # Signal selection
         tk.Label(self.dialog, text="Signal 1:").pack(pady=5)
@@ -1179,25 +1184,25 @@ class ComparisonDialog:
         mode_frame.pack(pady=5)
 
         tk.Radiobutton(mode_frame, text="Continuous", variable=self.mode_var,
-                      value="continuous").pack(side=tk.LEFT, padx=10)
+                       value="continuous").pack(side=tk.LEFT, padx=10)
         tk.Radiobutton(mode_frame, text="Discrete", variable=self.mode_var,
-                      value="discrete").pack(side=tk.LEFT, padx=10)
+                       value="discrete").pack(side=tk.LEFT, padx=10)
 
         # Buttons
         button_frame = tk.Frame(self.dialog)
         button_frame.pack(pady=20)
 
         tk.Button(button_frame, text="Compare", command=self.compare,
-                 width=15).pack(side=tk.LEFT, padx=5)
+                  width=15).pack(side=tk.LEFT, padx=5)
         tk.Button(button_frame, text="Cancel", command=self.dialog.destroy,
-                 width=10).pack(side=tk.LEFT, padx=5)
+                  width=10).pack(side=tk.LEFT, padx=5)
 
     def populate_signal_lists(self):
         """Populate both signal listboxes"""
         for listbox in [self.signal1_list, self.signal2_list]:
             listbox.delete(0, tk.END)
             for i, signal in enumerate(self.gui.data_manager.get_all_signals()):
-                listbox.insert(tk.END, f"{i+1}. {signal['name']}")
+                listbox.insert(tk.END, f"{i + 1}. {signal['name']}")
 
     def compare(self):
         """Execute the comparison"""
